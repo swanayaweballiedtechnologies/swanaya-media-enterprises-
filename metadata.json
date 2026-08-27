@@ -1,0 +1,6 @@
+{
+  "name": "Swanaya Media Enterprises",
+  "description": "Official corporate digital headquarters and CMS platform for Swanaya Media Enterprises — Creating Brands. Building Experiences. Growing Businesses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
