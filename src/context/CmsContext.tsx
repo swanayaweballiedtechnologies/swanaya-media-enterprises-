@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import {
   Division,
   Service,
@@ -240,6 +243,154 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => saveStorage('media_assets', mediaAssets), [mediaAssets]);
   useEffect(() => saveStorage('seo_settings', seoSettings), [seoSettings]);
 
+  // Firebase Auth Observer
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        if (firebaseUser.email === 'swanayamediaenterprisesadmins@gmail.com') {
+          const adminUser: AdminUser = {
+            id: firebaseUser.uid,
+            username: 'swanayamedia_admin',
+            name: firebaseUser.displayName || 'Swanaya Admin',
+            email: firebaseUser.email || 'swanayamediaenterprisesadmins@gmail.com',
+            role: 'Super Admin',
+            passwordHash: '',
+            avatarUrl: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80',
+            createdAt: new Date().toISOString(),
+          };
+          setCurrentUser(adminUser);
+        }
+      } else {
+        if (currentUser && currentUser.passwordHash === '') {
+          setCurrentUser(null);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Sync / Load Initial Data from Firestore & Auto-Seed
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        // 1. Site Settings
+        const settingsDoc = await getDoc(doc(db, 'site_settings', 'main'))
+          .catch(err => handleFirestoreError(err, OperationType.GET, 'site_settings/main'));
+        if (settingsDoc && settingsDoc.exists()) {
+          setSiteSettings(settingsDoc.data() as SiteSettings);
+        } else {
+          if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+            await setDoc(doc(db, 'site_settings', 'main'), siteSettings)
+              .catch(err => handleFirestoreError(err, OperationType.WRITE, 'site_settings/main'));
+          }
+        }
+
+        // 2. Services
+        const servicesSnap = await getDocs(collection(db, 'services'))
+          .catch(err => handleFirestoreError(err, OperationType.LIST, 'services'));
+        if (servicesSnap && !servicesSnap.empty) {
+          const list: Service[] = [];
+          servicesSnap.forEach((doc) => list.push(doc.data() as Service));
+          setServices(list.sort((a, b) => (a.order || 0) - (b.order || 0)));
+        } else {
+          if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+            for (const srv of INITIAL_SERVICES) {
+              await setDoc(doc(db, 'services', srv.id), srv)
+                .catch(err => handleFirestoreError(err, OperationType.CREATE, `services/${srv.id}`));
+            }
+          }
+        }
+
+        // 3. Projects
+        const projectsSnap = await getDocs(collection(db, 'projects'))
+          .catch(err => handleFirestoreError(err, OperationType.LIST, 'projects'));
+        if (projectsSnap && !projectsSnap.empty) {
+          const list: Project[] = [];
+          projectsSnap.forEach((doc) => list.push(doc.data() as Project));
+          setProjects(list);
+        } else {
+          if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+            for (const proj of INITIAL_PROJECTS) {
+              await setDoc(doc(db, 'projects', proj.id), proj)
+                .catch(err => handleFirestoreError(err, OperationType.CREATE, `projects/${proj.id}`));
+            }
+          }
+        }
+
+        // 4. Blog Posts
+        const blogSnap = await getDocs(collection(db, 'blog_posts'))
+          .catch(err => handleFirestoreError(err, OperationType.LIST, 'blog_posts'));
+        if (blogSnap && !blogSnap.empty) {
+          const list: BlogPost[] = [];
+          blogSnap.forEach((doc) => list.push(doc.data() as BlogPost));
+          setBlogPosts(list);
+        } else {
+          if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+            for (const post of INITIAL_BLOG_POSTS) {
+              await setDoc(doc(db, 'blog_posts', post.id), post)
+                .catch(err => handleFirestoreError(err, OperationType.CREATE, `blog_posts/${post.id}`));
+            }
+          }
+        }
+
+        // 5. Testimonials
+        const testimonialsSnap = await getDocs(collection(db, 'testimonials'))
+          .catch(err => handleFirestoreError(err, OperationType.LIST, 'testimonials'));
+        if (testimonialsSnap && !testimonialsSnap.empty) {
+          const list: Testimonial[] = [];
+          testimonialsSnap.forEach((doc) => list.push(doc.data() as Testimonial));
+          setTestimonials(list);
+        } else {
+          if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+            for (const t of INITIAL_TESTIMONIALS) {
+              await setDoc(doc(db, 'testimonials', t.id), t)
+                .catch(err => handleFirestoreError(err, OperationType.CREATE, `testimonials/${t.id}`));
+            }
+          }
+        }
+
+        // 6. FAQs
+        const faqsSnap = await getDocs(collection(db, 'faqs'))
+          .catch(err => handleFirestoreError(err, OperationType.LIST, 'faqs'));
+        if (faqsSnap && !faqsSnap.empty) {
+          const list: FAQ[] = [];
+          faqsSnap.forEach((doc) => list.push(doc.data() as FAQ));
+          setFaqs(list);
+        } else {
+          if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+            for (const f of INITIAL_FAQS) {
+              await setDoc(doc(db, 'faqs', f.id), f)
+                .catch(err => handleFirestoreError(err, OperationType.CREATE, `faqs/${f.id}`));
+            }
+          }
+        }
+
+        // 7. Privileged Data: Leads & Audit Logs (Only fetched if Admin logged in)
+        if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+          const leadsSnap = await getDocs(collection(db, 'leads'))
+            .catch(err => handleFirestoreError(err, OperationType.LIST, 'leads'));
+          if (leadsSnap && !leadsSnap.empty) {
+            const list: ContactLead[] = [];
+            leadsSnap.forEach((doc) => list.push(doc.data() as ContactLead));
+            setLeads(list);
+          }
+
+          const auditSnap = await getDocs(collection(db, 'audit_logs'))
+            .catch(err => handleFirestoreError(err, OperationType.LIST, 'audit_logs'));
+          if (auditSnap && !auditSnap.empty) {
+            const list: AuditLog[] = [];
+            auditSnap.forEach((doc) => list.push(doc.data() as AuditLog));
+            setAuditLogs(list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync initial data from Firestore:', error);
+      }
+    };
+
+    loadInitialData();
+  }, [currentUser]);
+
   // Periodic active visitors simulation variation
   useEffect(() => {
     const interval = setInterval(() => {
@@ -291,6 +442,11 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       details,
     };
     setAuditLogs((prev) => [log, ...prev]);
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `audit_logs/${log.id}`;
+      setDoc(doc(db, 'audit_logs', log.id), log)
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
+    }
   };
 
   const loginAdmin = (username: string, passwordHash: string): boolean => {
@@ -327,6 +483,11 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateSiteSettings = (settings: Partial<SiteSettings>) => {
     setSiteSettings((prev) => {
       const updated = { ...prev, ...settings };
+      if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+        const path = 'site_settings/main';
+        setDoc(doc(db, 'site_settings', 'main'), updated)
+          .catch(err => handleFirestoreError(err, OperationType.WRITE, path));
+      }
       addAudit('SETTINGS_CHANGE', 'SiteSettings', 'Global Site Configuration');
       return updated;
     });
@@ -335,36 +496,66 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Services
   const updateService = (srv: Service) => {
     setServices((prev) => prev.map((s) => (s.id === srv.id ? srv : s)));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `services/${srv.id}`;
+      setDoc(doc(db, 'services', srv.id), srv)
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+    }
     addAudit('UPDATE', 'Service', srv.name);
   };
 
   const createService = (srvData: Omit<Service, 'id'>) => {
     const newService: Service = { ...srvData, id: 'srv-' + Date.now() };
     setServices((prev) => [...prev, newService]);
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `services/${newService.id}`;
+      setDoc(doc(db, 'services', newService.id), newService)
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
+    }
     addAudit('CREATE', 'Service', newService.name);
   };
 
   const deleteService = (id: string) => {
     const target = services.find((s) => s.id === id);
     setServices((prev) => prev.filter((s) => s.id !== id));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `services/${id}`;
+      deleteDoc(doc(db, 'services', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, path));
+    }
     if (target) addAudit('DELETE', 'Service', target.name);
   };
 
   // Projects
   const updateProject = (proj: Project) => {
     setProjects((prev) => prev.map((p) => (p.id === proj.id ? proj : p)));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `projects/${proj.id}`;
+      setDoc(doc(db, 'projects', proj.id), proj)
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+    }
     addAudit('UPDATE', 'Project', proj.title);
   };
 
   const createProject = (projData: Omit<Project, 'id'>) => {
     const newProj: Project = { ...projData, id: 'proj-' + Date.now() };
     setProjects((prev) => [...prev, newProj]);
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `projects/${newProj.id}`;
+      setDoc(doc(db, 'projects', newProj.id), newProj)
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
+    }
     addAudit('CREATE', 'Project', newProj.title);
   };
 
   const deleteProject = (id: string) => {
     const target = projects.find((p) => p.id === id);
     setProjects((prev) => prev.filter((p) => p.id !== id));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `projects/${id}`;
+      deleteDoc(doc(db, 'projects', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, path));
+    }
     if (target) addAudit('DELETE', 'Project', target.title);
   };
 
@@ -407,18 +598,33 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Blog
   const updateBlogPost = (post: BlogPost) => {
     setBlogPosts((prev) => prev.map((p) => (p.id === post.id ? post : p)));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `blog_posts/${post.id}`;
+      setDoc(doc(db, 'blog_posts', post.id), post)
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+    }
     addAudit('UPDATE', 'BlogPost', post.title);
   };
 
   const createBlogPost = (postData: Omit<BlogPost, 'id'>) => {
     const newPost: BlogPost = { ...postData, id: 'blog-' + Date.now() };
     setBlogPosts((prev) => [newPost, ...prev]);
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `blog_posts/${newPost.id}`;
+      setDoc(doc(db, 'blog_posts', newPost.id), newPost)
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
+    }
     addAudit('CREATE', 'BlogPost', newPost.title);
   };
 
   const deleteBlogPost = (id: string) => {
     const target = blogPosts.find((p) => p.id === id);
     setBlogPosts((prev) => prev.filter((p) => p.id !== id));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `blog_posts/${id}`;
+      deleteDoc(doc(db, 'blog_posts', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, path));
+    }
     if (target) addAudit('DELETE', 'BlogPost', target.title);
   };
 
@@ -448,36 +654,66 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Testimonials
   const updateTestimonial = (test: Testimonial) => {
     setTestimonials((prev) => prev.map((t) => (t.id === test.id ? test : t)));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `testimonials/${test.id}`;
+      setDoc(doc(db, 'testimonials', test.id), test)
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+    }
     addAudit('UPDATE', 'Testimonial', test.clientName);
   };
 
   const createTestimonial = (testData: Omit<Testimonial, 'id'>) => {
     const newTest: Testimonial = { ...testData, id: 'test-' + Date.now() };
     setTestimonials((prev) => [...prev, newTest]);
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `testimonials/${newTest.id}`;
+      setDoc(doc(db, 'testimonials', newTest.id), newTest)
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
+    }
     addAudit('CREATE', 'Testimonial', newTest.clientName);
   };
 
   const deleteTestimonial = (id: string) => {
     const target = testimonials.find((t) => t.id === id);
     setTestimonials((prev) => prev.filter((t) => t.id !== id));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `testimonials/${id}`;
+      deleteDoc(doc(db, 'testimonials', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, path));
+    }
     if (target) addAudit('DELETE', 'Testimonial', target.clientName);
   };
 
   // FAQs
   const updateFAQ = (faq: FAQ) => {
     setFaqs((prev) => prev.map((f) => (f.id === faq.id ? faq : f)));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `faqs/${faq.id}`;
+      setDoc(doc(db, 'faqs', faq.id), faq)
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+    }
     addAudit('UPDATE', 'FAQ', faq.question);
   };
 
   const createFAQ = (faqData: Omit<FAQ, 'id'>) => {
     const newFaq: FAQ = { ...faqData, id: 'faq-' + Date.now() };
     setFaqs((prev) => [...prev, newFaq]);
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `faqs/${newFaq.id}`;
+      setDoc(doc(db, 'faqs', newFaq.id), newFaq)
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
+    }
     addAudit('CREATE', 'FAQ', newFaq.question);
   };
 
   const deleteFAQ = (id: string) => {
     const target = faqs.find((f) => f.id === id);
     setFaqs((prev) => prev.filter((f) => f.id !== id));
+    if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+      const path = `faqs/${id}`;
+      deleteDoc(doc(db, 'faqs', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, path));
+    }
     if (target) addAudit('DELETE', 'FAQ', target.question);
   };
 
@@ -503,6 +739,9 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...prev,
       totalLeadsCount: prev.totalLeadsCount + 1,
     }));
+    const path = `leads/${leadId}`;
+    setDoc(doc(db, 'leads', leadId), newLead)
+      .catch(err => handleFirestoreError(err, OperationType.CREATE, path));
     return leadId;
   };
 
@@ -521,7 +760,13 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               },
             ]
           : lead.notes;
-        return { ...lead, status, notes: updatedNotes };
+        const updated = { ...lead, status, notes: updatedNotes };
+        if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+          const path = `leads/${leadId}`;
+          setDoc(doc(db, 'leads', leadId), updated)
+            .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+        }
+        return updated;
       })
     );
     addAudit('UPDATE', 'Lead', `Lead ${leadId}`, `Status changed to ${status}`);
@@ -537,7 +782,13 @@ export const CmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           timestamp: new Date().toISOString(),
           note: noteText,
         };
-        return { ...lead, notes: [...lead.notes, newNote] };
+        const updated = { ...lead, notes: [...lead.notes, newNote] };
+        if (auth.currentUser?.email === 'swanayamediaenterprisesadmins@gmail.com') {
+          const path = `leads/${leadId}`;
+          setDoc(doc(db, 'leads', leadId), updated)
+            .catch(err => handleFirestoreError(err, OperationType.UPDATE, path));
+        }
+        return updated;
       })
     );
   };

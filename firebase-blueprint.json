@@ -1,0 +1,190 @@
+{
+  "entities": {
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Configuration settings for the corporate website.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "brandStatement": { "type": "string" },
+        "primaryEmail": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "founderPhone": { "type": "string" },
+        "marketingPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "location": { "type": "string" },
+        "foundedYear": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "faviconUrl": { "type": "string" },
+        "ogDefaultImage": { "type": "string" },
+        "analyticsEnabled": { "type": "boolean" },
+        "maintenanceMode": { "type": "boolean" }
+      },
+      "required": ["companyName", "primaryEmail", "phone", "address"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "A business or creative service offered by the enterprise.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "divisionId": { "type": "string" },
+        "shortDescription": { "type": "string" },
+        "directAnswer": { "type": "string" },
+        "fullOverview": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "published": { "type": "boolean" },
+        "order": { "type": "integer" }
+      },
+      "required": ["id", "slug", "name", "category", "divisionId", "shortDescription"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "A client project showcase / case study.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "client": { "type": "string" },
+        "category": { "type": "string" },
+        "divisionId": { "type": "string" },
+        "relatedServiceSlug": { "type": "string" },
+        "shortDescription": { "type": "string" },
+        "challenge": { "type": "string" },
+        "strategy": { "type": "string" },
+        "execution": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "published": { "type": "boolean" }
+      },
+      "required": ["id", "slug", "title", "client", "category"]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "An insight, blog post, or editorial article.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "category": { "type": "string" },
+        "authorName": { "type": "string" },
+        "publishedDate": { "type": "string" },
+        "status": { "type": "string" },
+        "isFeatured": { "type": "boolean" }
+      },
+      "required": ["id", "slug", "title", "excerpt", "category", "status"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "A verified client review or endorsement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientName": { "type": "string" },
+        "company": { "type": "string" },
+        "designation": { "type": "string" },
+        "quote": { "type": "string" },
+        "rating": { "type": "integer" },
+        "photo": { "type": "string" },
+        "category": { "type": "string" },
+        "metricHighlight": { "type": "string" },
+        "projectSlug": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "published": { "type": "boolean" }
+      },
+      "required": ["id", "clientName", "company", "quote", "rating", "isFeatured", "published"]
+    },
+    "FAQ": {
+      "title": "FAQ",
+      "description": "A frequently asked question and answer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "category": { "type": "string" },
+        "relatedServiceSlug": { "type": "string" },
+        "published": { "type": "boolean" }
+      },
+      "required": ["id", "question", "answer", "category", "published"]
+    },
+    "ContactLead": {
+      "title": "ContactLead",
+      "description": "A business inquiry or lead generated from a form.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "company": { "type": "string" },
+        "serviceRequired": { "type": "string" },
+        "budgetRange": { "type": "string" },
+        "message": { "type": "string" },
+        "source": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "phone", "serviceRequired"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "A log of administrative actions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "adminUsername": { "type": "string" },
+        "adminRole": { "type": "string" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityTitle": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "adminUsername", "action", "entityType", "entityTitle"]
+    }
+  },
+  "firestore": {
+    "site_settings": {
+      "schema": "SiteSettings",
+      "description": "Website structural config and corporate details."
+    },
+    "services": {
+      "schema": "Service",
+      "description": "Offered corporate and creative services."
+    },
+    "projects": {
+      "schema": "Project",
+      "description": "Case studies and portfolio projects."
+    },
+    "blog_posts": {
+      "schema": "BlogPost",
+      "description": "Articles, insights, and industry editorials."
+    },
+    "testimonials": {
+      "schema": "Testimonial",
+      "description": "Verified customer success endorsements."
+    },
+    "faqs": {
+      "schema": "FAQ",
+      "description": "Standard business and service FAQs."
+    },
+    "leads": {
+      "schema": "ContactLead",
+      "description": "Inbound client requests and leads CRM data."
+    },
+    "audit_logs": {
+      "schema": "AuditLog",
+      "description": "System-wide tracking of CMS updates."
+    }
+  }
+}

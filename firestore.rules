@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "swanayamediaenterprisesadmins@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidSiteSettings(data) {
+      return data.companyName is string && data.companyName.size() <= 100 &&
+             data.primaryEmail is string && data.primaryEmail.size() <= 100 &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.address is string && data.address.size() <= 200;
+    }
+
+    function isValidService(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.slug is string && data.slug.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.divisionId is string && data.divisionId.size() <= 50 &&
+             data.shortDescription is string && data.shortDescription.size() <= 1000;
+    }
+
+    function isValidProject(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.slug is string && data.slug.size() <= 128 &&
+             data.title is string && data.title.size() <= 150 &&
+             data.client is string && data.client.size() <= 100 &&
+             data.category is string && data.category.size() <= 100;
+    }
+
+    function isValidBlogPost(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.slug is string && data.slug.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.excerpt is string && data.excerpt.size() <= 1000 &&
+             data.category is string && data.category.size() <= 50 &&
+             data.status is string && (data.status == "published" || data.status == "draft" || data.status == "scheduled" || data.status == "archived");
+    }
+
+    function isValidTestimonial(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.clientName is string && data.clientName.size() <= 100 &&
+             data.company is string && data.company.size() <= 100 &&
+             data.quote is string && data.quote.size() <= 2000 &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.isFeatured is bool &&
+             data.published is bool;
+    }
+
+    function isValidFAQ(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.question is string && data.question.size() <= 500 &&
+             data.answer is string && data.answer.size() <= 3000 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.published is bool;
+    }
+
+    function isValidContactLead(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.serviceRequired is string && data.serviceRequired.size() <= 150 &&
+             data.message is string && data.message.size() <= 3000;
+    }
+
+    function isValidAuditLog(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.adminUsername is string && data.adminUsername.size() <= 50 &&
+             data.action is string && data.action.size() <= 30 &&
+             data.entityType is string && data.entityType.size() <= 50 &&
+             data.entityTitle is string && data.entityTitle.size() <= 200;
+    }
+
+    // --- Collection Matches ---
+
+    // Site Settings (Public Read, Admin Write)
+    match /site_settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidId(settingsId) && isValidSiteSettings(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Services (Public Read Published, Admin Write)
+    match /services/{serviceId} {
+      allow list, get: if resource.data.published == true || isAdmin();
+      allow create, update: if isAdmin() && isValidId(serviceId) && isValidService(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Projects (Public Read Published, Admin Write)
+    match /projects/{projectId} {
+      allow list, get: if resource.data.published == true || isAdmin();
+      allow create, update: if isAdmin() && isValidId(projectId) && isValidProject(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Blog Posts (Public Read Published, Admin Write)
+    match /blog_posts/{postId} {
+      allow list, get: if resource.data.status == "published" || isAdmin();
+      allow create, update: if isAdmin() && isValidId(postId) && isValidBlogPost(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Testimonials (Public Read Published, Admin Write)
+    match /testimonials/{testimonialId} {
+      allow list, get: if resource.data.published == true || isAdmin();
+      allow create, update: if isAdmin() && isValidId(testimonialId) && isValidTestimonial(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // FAQs (Public Read Published, Admin Write)
+    match /faqs/{faqId} {
+      allow list, get: if resource.data.published == true || isAdmin();
+      allow create, update: if isAdmin() && isValidId(faqId) && isValidFAQ(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Leads (Anyone can create, Admin can read/update/delete)
+    match /leads/{leadId} {
+      allow create: if isValidId(leadId) && isValidContactLead(incoming());
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Audit Logs (Admin can create/read, No one can update/delete)
+    match /audit_logs/{logId} {
+      allow read, create: if isAdmin() && isValidId(logId) && isValidAuditLog(incoming());
+      allow update, delete: if false;
+    }
+
+    // Admins Directory (Admin read/write, standard users cannot access)
+    match /admins/{adminId} {
+      allow read, write: if isAdmin() && isValidId(adminId);
+    }
+  }
+}
